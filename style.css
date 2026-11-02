@@ -108,3 +108,8 @@ input,select{ width:100%; padding:12px; border-radius:10px; border:1px solid var
 .alert.good{ border-left-color:var(--in); }
 .alert p{ margin:6px 0; }
 .report .main-btn{ margin-top:6px; }
+
+.lock{ position:fixed; inset:0; z-index:100; background:var(--bg);
+       display:flex; align-items:center; justify-content:center; padding:20px; }
+.lockbox{ width:100%; max-width:340px; text-align:center; }
+.lockbox input{ text-align:center; font-size:22px; letter-spacing:6px; margin-top:10px; }

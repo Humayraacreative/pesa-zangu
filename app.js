@@ -288,8 +288,10 @@ function rekodiView(){
 }
 
 function nakalaView(){
-  return `<div class="head"><h1>Nakala (backup)</h1></div>
+  const hasPin = !!getPin();
+  return `<div class="head"><h1>Nakala na usalama</h1></div>
     <div class="card">
+      <b>Nakala (backup)</b>
       <p>Rekodi zako ziko ndani ya simu hii. Pakua nakala mara kwa mara ili usizipoteze.</p>
       <p class="sub">Rekodi zilizopo: ${tx.length}</p>
       <button class="main-btn" id="export">Pakua nakala</button>
@@ -297,6 +299,11 @@ function nakalaView(){
     <div class="card"><b>Rudisha nakala</b>
       <p class="sub">Chagua faili ulilopakua awali. Rekodi zitaunganishwa na zilizopo, hazitafutwa.</p>
       <input type="file" id="import" accept=".json,application/json">
+    </div>
+    <div class="card"><b>PIN ya kufungua app</b>
+      <p class="sub">${hasPin ? "PIN imewekwa. App inajifunga ukiiacha nyuma kwa dakika 1." : "Bado hujaweka PIN."}</p>
+      <button class="main-btn" id="setPin">${hasPin ? "Badilisha PIN" : "Weka PIN"}</button>
+      ${hasPin ? `<button class="del" id="removePin">Ondoa PIN</button>` : ""}
     </div>`;
 }
 
@@ -537,6 +544,101 @@ function alertsHtml(){
   return report + msgs.slice(0, 5).map(([k, h]) => `<div class="card alert ${k}">${h}</div>`).join("");
 }
 
+// ===== PIN YA KUFUNGUA APP =====
+const PIN_KEY = "pz_pin";       // PIN inahifadhiwa tofauti, haiingii kwenye nakala (backup)
+let fails = 0, lockedUntil = 0, hiddenAt = 0;
+
+function getPin(){
+  try { return JSON.parse(localStorage.getItem(PIN_KEY) || "null"); }
+  catch (e) { return null; }
+}
+
+async function hashPin(pin, salt){
+  const data = new TextEncoder().encode(salt + ":" + pin);
+  if (window.crypto && crypto.subtle){
+    const buf = await crypto.subtle.digest("SHA-256", data);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  let h = 5381;                  // njia mbadala dhaifu kama browser haina crypto.subtle
+  data.forEach(b => { h = ((h << 5) + h + b) >>> 0; });
+  return "w" + h;
+}
+
+// mode: "set" (kuweka PIN mpya) au "unlock" (kufungua)
+function lockScreen(mode, onDone){
+  const old = document.getElementById("lock");
+  if (old) old.remove();
+  const setting = mode === "set";
+  const box = document.createElement("div");
+  box.id = "lock";
+  box.className = "lock";
+  box.innerHTML = `<div class="lockbox">
+    <h1>Pesa Zangu</h1>
+    <p class="sub">${setting ? "Weka PIN mpya (tarakimu 4 hadi 8)" : "Weka PIN kufungua"}</p>
+    <input id="pinIn" type="password" inputmode="numeric" maxlength="8" autocomplete="off">
+    ${setting ? `<input id="pinIn2" type="password" inputmode="numeric" maxlength="8" placeholder="Rudia PIN" autocomplete="off">` : ""}
+    <p id="pinErr" class="out"></p>
+    <button class="main-btn" id="pinOk">${setting ? "Hifadhi PIN" : "Fungua"}</button>
+    <button class="del" id="pinAlt">${setting ? "Ghairi" : "Umesahau PIN?"}</button>
+  </div>`;
+  document.body.appendChild(box);
+
+  const pin1 = document.getElementById("pinIn");
+  const pin2 = document.getElementById("pinIn2");
+  const err = document.getElementById("pinErr");
+  const ok = document.getElementById("pinOk");
+  pin1.focus();
+  box.querySelectorAll("input").forEach(i =>
+    i.addEventListener("keydown", e => { if (e.key === "Enter") ok.click(); }));
+
+  ok.onclick = async () => {
+    const v = pin1.value;
+    if (setting){
+      if (!/^\d{4,8}$/.test(v)){ err.textContent = "PIN iwe tarakimu 4 hadi 8."; return; }
+      if (v !== pin2.value){ err.textContent = "PIN mbili hazilingani."; return; }
+      const salt = Date.now() + "-" + Math.random().toString(36).slice(2);
+      localStorage.setItem(PIN_KEY, JSON.stringify({ salt, hash: await hashPin(v, salt) }));
+      box.remove();
+      if (onDone) onDone();
+      return;
+    }
+    if (Date.now() < lockedUntil){
+      err.textContent = "Subiri sekunde " + Math.ceil((lockedUntil - Date.now()) / 1000) + " kisha ujaribu tena.";
+      return;
+    }
+    const p = getPin();
+    if (p && await hashPin(v, p.salt) === p.hash){
+      fails = 0;
+      box.remove();
+    } else {
+      fails++;
+      pin1.value = "";
+      if (fails >= 5){
+        lockedUntil = Date.now() + 30000;
+        fails = 0;
+        err.textContent = "Umekosea mara 5. Subiri sekunde 30.";
+      } else {
+        err.textContent = "PIN si sahihi.";
+      }
+    }
+  };
+
+  document.getElementById("pinAlt").onclick = () => {
+    if (setting){ box.remove(); return; }
+    if (confirm("Hii itafuta rekodi zote na PIN kwenye simu hii. Unaweza kuzirudisha kwa nakala (backup) uliyopakua. Endelea?")){
+      ["tx", "budget", "settings", PIN_KEY].forEach(k => localStorage.removeItem(k));
+      location.reload();
+    }
+  };
+}
+
+// jifunge yenyewe ukiacha app nyuma kwa zaidi ya dakika 1
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden){ hiddenAt = Date.now(); return; }
+  if (getPin() && hiddenAt && Date.now() - hiddenAt > 60000 && !document.getElementById("lock"))
+    lockScreen("unlock");
+});
+
 // ===== 7. KUCHORA UKURASA =====
 function render(){
   charts.forEach(c => c.destroy());
@@ -624,6 +726,13 @@ document.getElementById("app").addEventListener("click", e => {
     save(); view = "dash"; render();
   } else if (b.id === "export"){
     exportData();
+  } else if (b.id === "setPin"){
+    lockScreen("set", render);
+  } else if (b.id === "removePin"){
+    if (confirm("Ondoa PIN? Mtu yeyote atakayefungua app ataona rekodi zako.")){
+      localStorage.removeItem(PIN_KEY);
+      render();
+    }
   }
 });
 
@@ -656,4 +765,5 @@ document.getElementById("app").addEventListener("change", e => {
   r.readAsText(file);
 });
 
+if (getPin()) lockScreen("unlock");
 render();
