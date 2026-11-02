@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="sw">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pesa Zangu</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <div class="layout">
+    <aside class="side">
+      <div class="logo">PZ<span>Pesa Zangu</span></div>
+      <nav>
+        <button data-v="dash"><i>▦</i><span>Dashibodi</span></button>
+        <button data-v="uchambuzi"><i>◧</i><span>Uchambuzi</span></button>
+        <button data-v="ongeza"><i>＋</i><span>Ongeza</span></button>
+        <button data-v="bajeti"><i>◔</i><span>Bajeti</span></button>
+        <button data-v="rekodi"><i>≡</i><span>Rekodi</span></button>
+        <button data-v="nakala"><i>⇩</i><span>Nakala</span></button>
+      </nav>
+    </aside>
+    <main id="app"></main>
+  </div>
+
+  <script>
+    window.onerror = function(msg, src, line){
+      document.body.insertAdjacentHTML("afterbegin",
+        '<pre style="background:#fee;color:#900;padding:10px;white-space:pre-wrap">KOSA: '
+        + msg + ' (mstari ' + line + ')</pre>');
+    };
+  </script>
+  <script src="app.js"></script>
+</body>
+</html>
