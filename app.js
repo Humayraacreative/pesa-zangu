@@ -289,7 +289,7 @@ function rekodiView(){
 
 function nakalaView(){
   const hasPin = !!getPin();
-  return `<div class="head"><h1>Nakala na usalama</h1></div>
+  return `<div class="head"><h1>Mipangilio</h1></div>
     <div class="card">
       <b>Nakala (backup)</b>
       <p>Rekodi zako ziko ndani ya simu hii. Pakua nakala mara kwa mara ili usizipoteze.</p>
@@ -632,6 +632,31 @@ function lockScreen(mode, onDone){
   };
 }
 
+function pinOffer(){
+  // 1. Tengeneza kisanduku kipya kinachofunika ukurasa
+  const box = document.createElement("div");
+  box.id = "lock";
+  box.className = "lock";
+
+  // 2. Weka maandishi na vitufe viwili ndani yake
+  box.innerHTML = `<div class="lockbox">
+    <h1>Karibu Pesa Zangu</h1>
+    <p>Unataka kulinda rekodi zako kwa PIN? Utaiingiza kila unapofungua app.
+       Unaweza pia kuiweka baadaye kwenye tab ya Mipangilio.</p>
+    <button class="main-btn" id="offYes">Weka PIN sasa</button>
+    <button class="del" id="offNo">Baadaye</button>
+  </div>`;
+  document.body.appendChild(box);   // 3. Kionyeshe kwenye skrini
+
+  // 4. Andika kwamba tumeshauliza, ili tusimuulize tena kila siku
+  settings.pinAsked = true;
+  save();
+
+  // 5. Vitufe: "Weka PIN sasa" fungua skrini ya kuweka PIN, "Baadaye" funga kisanduku
+  document.getElementById("offYes").onclick = () => lockScreen("set", render);
+  document.getElementById("offNo").onclick = () => box.remove();
+}
+
 // jifunge yenyewe ukiacha app nyuma kwa zaidi ya dakika 1
 document.addEventListener("visibilitychange", () => {
   if (document.hidden){ hiddenAt = Date.now(); return; }
@@ -765,5 +790,6 @@ document.getElementById("app").addEventListener("change", e => {
   r.readAsText(file);
 });
 
-if (getPin()) lockScreen("unlock");
 render();
+if (getPin()) lockScreen("unlock");       // kuna PIN: omba PIN
+else if (!settings.pinAsked) pinOffer();  // hakuna PIN na hajawahi kuulizwa: mkaribishe
