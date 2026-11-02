@@ -793,3 +793,4 @@ document.getElementById("app").addEventListener("change", e => {
 render();
 if (getPin()) lockScreen("unlock");       // kuna PIN: omba PIN
 else if (!settings.pinAsked) pinOffer();  // hakuna PIN na hajawahi kuulizwa: mkaribishe
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js");
